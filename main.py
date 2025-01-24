@@ -68,7 +68,11 @@ def register_user(username, password, email):
     for user in users:
         if user['username'] == username or user['email'] == email:
             return False
-    users.append({'username': username, 'password': md5(password), 'email': email, 'nickname': username, 'permission': 0})
+    if len(users) == 0:
+        permission = 1
+    else:
+        permission = 0
+    users.append({'username': username, 'password': md5(password), 'email': email, 'nickname': username, 'permission': permission})
     user_data_lock.acquire()
     with open('data/users.json', 'w', encoding='utf-8') as f:
         f.write(json.dumps(users, indent=4))

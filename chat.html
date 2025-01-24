@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TzChatPy</title>
+    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/socket.io/4.4.1/socket.io.min.js"></script>
+    <!--script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery/3.6.0/jquery.min.js"></script-->
+    <!--适配各个设备屏幕大小-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--引入mdui 1.0.2版本-->
+    <link rel="stylesheet" href="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mdui/1.0.2/css/mdui.min.css"/>
+    <script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mdui/1.0.2/js/mdui.min.js"></script>
+    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/axios/0.26.0/axios.min.js"></script>
+    <style>
+        .chat-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            height: 50px;
+            background-color: #f5f5f5;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+
+        .chat-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .chat-message {
+            margin-bottom: 10px;
+        }
+
+        .chat-message .username {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        .chat-message .message {
+            background-color: #e0e0e0;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .chat-input {
+            height: 50px;
+            background-color: #f5f5f5;
+            display: flex; align-items: center;
+            padding: 0 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            height: 30px;
+            padding: 5px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .chat-input button {
+            margin-left: 10px;
+            height: 30px;
+        }
+        #context-menu {
+            position: absolute;
+            z-index: 1000;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        #context-menu .mdui-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+
+        #context-menu .mdui-menu-item:hover {
+            background-color: #f5f5f5;
+        }
+    </style>
+</head>
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
+    <div class="chat-container">
+        <div class="chat-header">
+            <button class="mdui-btn mdui-btn-icon" onclick="window.location.href = '/';"><i class="mdui-icon material-icons">arrow_back</i></button>
+            <h3>TzChatPy</h3>
+            &nbsp;
+            <span mdui-tooltip="{content: '在线人数（可点击）'}" onclick="getOnlineUsersDialog();"><i class="mdui-icon material-icons">account_circle</i><span id="online-users-count">114514</span></span>
+            <div class="mdui-toolbar-spacer"></div>
+            <button class="mdui-btn mdui-btn-icon" onclick="window.location.href = '/settings';"><i class="mdui-icon material-icons">settings</i></button>
+            <button class="mdui-btn mdui-btn-icon" onclick="logout()"><i class="mdui-icon material-icons">exit_to_app</i></button>
+        </div>
+        <div class="chat-body" id="chat-body">
+            <!-- Chat messages will be added here -->
+        </div>
+        <div class="chat-input">
+            <input type="text" id="message-input" placeholder="输入要发送的消息...按下回车发送" onkeydown="if(event.keyCode==13) sendMessage();">
+            <button class="mdui-btn mdui-btn-raised mdui-color-indigo" onclick="sendMessage()">发送</button>
+        </div>
+    </div>
+
+    <script>
+        var socket = io({reconnection:false});
+        // token从cookie中获取
+        var token = document.cookie.replace(/(?:(?:^|.*;\s*)token\s*\=\s*([^;]*).*$)|^.*$/, "$1");
+        var room_id = window.location.pathname.split('/')[2];
+        if(token == ''){
+            window.location.href = '/login';
+        }
+        function sendMessage() {
+            var message = {token:token,message:document.getElementById('message-input').value,room_id:room_id};
+            socket.emit('message', message);
+            document.getElementById('message-input').value = '';
+        }
+
+        function logout() {
+            document.cookie = "token=; expires="+new Date().toUTCString()+"; path=/;";
+            window.location.href = '/login';
+        }
+
+        // 监听服务器返回的消息
+        socket.on('message', function(message) {
+            if(message.status !==undefined && message.status !== 200){
+                mdui.snackbar({
+                    message: message.message,
+                    position: 'top',
+                })
+                return
+            }
+            var chatBody = document.getElementById('chat-body');
+            var messageElement = document.createElement('div');
+            messageElement.className = 'chat-message';
+            var date = new Date(message.time * 1000);
+            var year = date.getFullYear();
+            var month = date.getMonth() + 1;
+            var day = date.getDate();
+            var hours = date.getHours();
+            var minutes = date.getMinutes();
+            var seconds = date.getSeconds();
+            var time = year + '-' + month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
+            var truename = '('+message.user+')';
+            if(message.nickname == message.user){
+                truename = '';
+            }
+            messageElement.innerHTML = '<div id="'+message.msg_id+'"><span class="username">'+message.nickname+truename+' 在'+time+': </span><span class="mdui-text-color-blue-200" onclick="messageOperation(\''+message.msg_id+'\');">操作</span><br><br><span class="message">' + message.message + '</span></div>';
+            chatBody.appendChild(messageElement);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        });
+
+        socket.on('notice', function(message) {
+            if(message.type=="recall_message"){
+                var messageElement = document.getElementById(message.msg_id);
+                if(messageElement){
+                    var truename = '('+message.user+')';
+                    if(message.nickname == message.user){
+                        truename = '';
+                    }
+                    var recaller_truename = '('+message.recaller+')';
+                    if(message.recaller_nickname == message.recaller){
+                        recaller_truename = '';
+                    }
+                    if(message.recaller == message.user){
+                        messageElement.innerHTML = '<span class="username">'+message.nickname+truename+'撤回了一条消息</span>';
+                    }else{
+                        messageElement.innerHTML = '<span class="username">'+message.recaller_nickname+recaller_truename+'撤回了'+message.nickname+truename+'的一条消息</span>'
+                    }
+                }
+            }else if(message.type=="user_connect"){
+                document.getElementById('online-users-count').innerHTML = parseInt(document.getElementById('online-users-count').innerText)+1;
+            }else if(message.type=="user_disconnect"){
+                document.getElementById('online-users-count').innerHTML = parseInt(document.getElementById('online-users-count').innerText)-1;
+            }
+        })
+
+        // 如果没有token，则把界面改成登录界面login
+        if(!token){
+            window.location.href = "login";
+        }
+        // 获取消息历史记录
+        function getHistory() {
+            axios.post('/get_history', {token:token,room_id:room_id}).then(function (response) {
+                if(response.data.status != 200){
+                    mdui.snackbar({
+                        message: response.data.message,
+                        position: 'top',
+                    })
+                    return
+                }
+                var chatBody = document.getElementById('chat-body');
+                chatBody.innerHTML = '';
+                for (var i = 0; i < response.data.history.length; i++) {
+                    var messageElement = document.createElement('div');
+                    messageElement.className = 'chat-message';
+                    var date = new Date(response.data.history[i].time * 1000);
+                    var year = date.getFullYear();
+                    var month = date.getMonth() + 1;
+                    var day = date.getDate();
+                    var hours = date.getHours();
+                    var minutes = date.getMinutes();
+                    var seconds = date.getSeconds();
+                    var time = year + '-' + month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
+                    var truename = '('+response.data.history[i].user+')';
+                    if(response.data.history[i].nickname == response.data.history[i].user){
+                        truename = '';
+                    }
+                    if(response.data.history[i].recalled === false){
+                        messageElement.innerHTML = '<div id="'+response.data.history[i].msg_id+'"><span class="username">'+response.data.history[i].nickname+truename+' 在'+time+': </span><span class="mdui-text-color-blue-200" onclick="messageOperation(\''+response.data.history[i].msg_id+'\');">操作</span><br><br><span class="message">' + response.data.history[i].message + '</span>';
+                    }else{
+                        if(response.data.history[i].recaller == response.data.history[i].user){
+                            messageElement.innerHTML = '<span class="username">'+response.data.history[i].nickname+truename+'撤回了一条消息</span>';
+                        }else{
+                            var recaller_truename = '('+response.data.history[i].recaller+')';
+                            if(response.data.history[i].recaller_nickname == response.data.history[i].recaller){
+                                recaller_truename = '';
+                            }
+                            messageElement.innerHTML = '<span class="username">'+response.data.history[i].recaller_nickname+recaller_truename+'撤回了'+response.data.history[i].nickname+truename+'的一条消息</span>';
+                        }
+                        //messageElement.innerHTML = '<span class="username">'+response.data.history[i].nickname+truename+'撤回了一条消息</span>';
+                    }
+                    chatBody.appendChild(messageElement);
+                }
+                chatBody.scrollTop = chatBody.scrollHeight;
+            })
+        }
+
+        function recallMessage(message_id) {
+            axios.post('/recall_message', {token:token, msg_id:message_id, room_id:room_id}).then(function (response) {
+                if(response.data.status != 200){
+                    mdui.snackbar({
+                        message: response.data.message,
+                        position: 'top',
+                    })
+                    return
+                }
+            }).catch(function (error) {
+                if(error.response){
+                    if(error.response.status === 400){
+                        mdui.snackbar({
+                            message: '撤回失败，你可能没有权限去撤回该消息',
+                            position: 'top',
+                        })
+                    }else{
+                        mdui.snackbar({
+                            message: error.response.data.message,
+                            position: 'top',
+                        })
+                    }
+                }
+            })
+        }
+
+        function messageOperation(message_id) {
+            var usernameElement = document.getElementById(message_id).getElementsByClassName('username')[0];
+            var messageElement = document.getElementById(message_id).getElementsByClassName('message')[0];
+            mdui.dialog({
+                title: '消息操作',
+                content: usernameElement.innerHTML+"<br>"+messageElement.innerHTML,
+                buttons: [
+                    {
+                        text: '撤回',
+                        onClick: function(inst){
+                            recallMessage(message_id);
+                        }
+                    },
+                    {
+                        text: '关闭'
+                    }
+                ],
+                stackedButtons: true,
+                history: false,
+            });
+        }
+
+        function getOnlineUsers(){
+            axios.post('/get_online_users', {token:token,room_id:room_id}).then(function (response) {
+                document.getElementById('online-users-count').innerHTML = response.data.online_users.length
+            }).catch(function (error) {
+                if(error.response){
+                    mdui.snackbar({
+                        message: error.response.data.message,
+                        position: 'top',
+                    })
+                }
+            })
+        }
+
+        function getOnlineUsersDialog(){
+            axios.post('/get_online_users', {token:token,room_id:room_id}).then(function (response) {
+                var content = '当前房间在线：<br>';
+                for(var i=0; i<response.data.online_users.length; i++){
+                    content += response.data.online_users[i]+'<br>'
+                }
+                mdui.dialog({
+                    title: '在线用户',
+                    content: content,
+                    buttons: [
+                        {
+                            text: '关闭'
+                        }
+                    ],
+                    history: false,
+                })
+            }).catch(function (error) {
+                if(error.response){
+                    mdui.snackbar({
+                        message: error.response.data.message,
+                        position: 'top',
+                    })
+                }else{
+                    mdui.snackbar({
+                        message: '获取在线用户失败:'+error.message,
+                        position: 'top',
+                    })
+                }
+            })
+        }
+
+
+        
+
+
+        // 先向服务器验证身份
+        socket.on('verify_user', function(message) {
+            if(message.status != 200){
+                window.location.href = "/login";
+            }else{
+                getHistory();
+                getOnlineUsers();
+            }
+        });
+        socket.emit('verify_user', {token: token, room_id: room_id});
+        setInterval(function(){
+            if(!socket.connected){
+                console.log("reconnecting");
+                socket.connect()
+                setTimeout(function(){
+                    if(!socket.connected){
+                        console.log("reconnect failed");
+                        return
+                    }
+                    socket.emit('verify_user', {token: token, room_id: room_id});
+                    console.log("reconnect success");
+                },5000);
+            }
+        },5000)
+    </script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TzChatPy</title>
+    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/socket.io/4.4.1/socket.io.min.js"></script>
+    <!--script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery/3.6.0/jquery.min.js"></script-->
+    <!--适配各个设备屏幕大小-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--引入mdui 1.0.2版本-->
+    <link rel="stylesheet" href="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mdui/1.0.2/css/mdui.min.css"/>
+    <script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mdui/1.0.2/js/mdui.min.js"></script>
+    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/axios/0.26.0/axios.min.js"></script>
+    <style>
+        .room-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .room-header {
+            height: 50px;
+            background-color: #f5f5f5;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+
+        .room-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .chat-message {
+            margin-bottom: 10px;
+        }
+
+        .chat-message .username {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        .chat-message .message {
+            background-color: #e0e0e0;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .chat-input {
+            height: 50px;
+            background-color: #f5f5f5;
+            display: flex; align-items: center;
+            padding: 0 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            height: 30px;
+            padding: 5px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .chat-input button {
+            margin-left: 10px;
+            height: 30px;
+        }
+        #context-menu {
+            position: absolute;
+            z-index: 1000;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        #context-menu .mdui-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+
+        #context-menu .mdui-menu-item:hover {
+            background-color: #f5f5f5;
+        }
+    </style>
+</head>
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
+    <div class="room-container">
+        <div class="room-header">
+            <h3>TzChatPy 房间列表</h3>
+            <div class="mdui-toolbar-spacer"></div>
+            <button class="mdui-btn mdui-btn-icon" onclick="create_room_dialog()"><i class="mdui-icon material-icons">add</i></button>
+            <button class="mdui-btn mdui-btn-icon" onclick="window.location.href = '/settings';"><i class="mdui-icon material-icons">settings</i></button>
+            <button class="mdui-btn mdui-btn-icon" onclick="logout()"><i class="mdui-icon material-icons">exit_to_app</i></button>
+        </div>
+        <div class="room-list" id="room-list">
+        </div>
+    </div>
+
+    <script>
+        // token从cookie中获取
+        var token = document.cookie.replace(/(?:(?:^|.*;\s*)token\s*\=\s*([^;]*).*$)|^.*$/, "$1");
+        if(token == ''){
+            window.location.href = '/login';
+        }
+        function logout() {
+            document.cookie = "token=; expires="+new Date().toUTCString()+"; path=/;";
+            // 刷新网页
+            window.location.reload();
+        }
+
+        // 如果没有token，则把界面改成登录界面login
+        if(!token){
+            window.location.href = "login";
+        }
+        function get_rooms(){
+            axios.post('/get_rooms', {
+                token: token
+            })
+            .then(function (response) {
+                var rooms = response.data.rooms;
+                var roomList = document.getElementById('room-list');
+                roomList.innerHTML = '';
+                for(var i = 0; i < rooms.length; i++){
+                    var room = rooms[i];
+                    var roomItem = document.createElement('div');
+                    roomItem.className = 'mdui-card room-item';
+                    roomItem.innerHTML = `
+                        <div class="mdui-card-primary">
+                            <div class="mdui-card-primary-title">${room.room_name}</div>
+                            <div class="mdui-card-primary-subtitle">${room.room_description}</div>
+                        </div>
+                        <div class="mdui-card-actions">
+                            <button class="mdui-btn mdui-ripple mdui-color-theme-accent" onclick="window.location.href = '/room/${room.room_id}';">加入</button>
+                            <button class="mdui-btn mdui-ripple mdui-color-theme-accent" onclick="delete_room_dialog('${room.room_id}')">删除</button>
+                        </div>
+                    `;
+                    roomList.appendChild(roomItem);
+                }
+            })
+            .catch(function (error) {
+                mdui.snackbar({
+                    message: '获取房间列表失败:'+error.message,
+                    position: 'bottom',
+                })
+            })
+        }
+
+        function create_room_dialog(){
+            mdui.prompt('房间名',"创建房间",
+                function(value){
+                    if(value == ''){
+                        mdui.snackbar({
+                            message: '房间名不能为空',
+                            position: 'bottom',
+                        })
+                        return;
+                    }
+                    axios.post('/create_room', {
+                        room_name: value,
+                        token: token
+                    }).then(function(response){
+                        mdui.snackbar({
+                            message: '创建房间成功',
+                            position: 'bottom',
+                        })
+                        get_rooms();
+                    }).catch(function(error){
+                        if(error.response && error.response.data){
+                            mdui.snackbar({
+                                message: '创建房间失败:'+error.response.data.message,
+                                position: 'bottom',
+                            })
+                        }else{
+                            mdui.snackbar({
+                                message: '创建房间失败:'+error.message,
+                                position: 'bottom',
+                            })
+                        }
+                    })
+                },
+                function(value){},
+                {
+                    history: false,
+                    confirmOnEnter: true,
+                }
+            )
+        }
+
+        function delete_room_dialog(room_id){
+            mdui.confirm("你真的要删除该房间吗，该房间的聊天记录将会被清空", "警告", function(){
+                delete_room(room_id);
+            }, function(){}, {history: false})
+        }
+
+        function delete_room(room_id){
+            axios.post('/delete_room', {
+                room_id: room_id,
+                token: token
+            }).then(function(response){
+                mdui.snackbar({
+                    message: '删除房间成功',
+                    position: 'bottom',
+                })
+                get_rooms();
+            }).catch(function(error){
+                if(error.response && error.response.data){
+                    mdui.snackbar({
+                        message: '删除房间失败:'+error.response.data.message,
+                        position: 'bottom',
+                    })
+                }else{
+                    mdui.snackbar({
+                        message: '删除房间失败:'+error.message,
+                        position: 'bottom',
+                    })
+                }
+            })
+        }
+
+        get_rooms();
+
+    </script>
+</body>
+</html>

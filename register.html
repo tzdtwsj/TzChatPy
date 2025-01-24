@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>注册到TzChatPy</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <!--引入mdui 1.0.2版本-->
+    <link rel="stylesheet" href="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mdui/1.0.2/css/mdui.min.css"/>
+    <script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mdui/1.0.2/js/mdui.min.js"></script>
+    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/axios/0.26.0/axios.min.js"></script>
+    <!--script src="https://cdn.jsdelivr.net/npm/js-md5@0.7.3/src/md5.min.js"></script-->
+    <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body class="mdui-theme-accent-pink mdui-theme-primary-indigo">
+<div class="mdui-container">
+    <div class="mdui-row">
+        <div class="mdui-col-xs-12 mdui-col-sm-6 mdui-col-offset-sm3">
+            <div class="mdui-card">
+                <div class="mdui-card-primary">
+                    <div class="mdui-card-primary-title">注册到TzChatPy</div>
+                </div>
+                <div class="mdui-card-content">
+                    <form id="register-form">
+                        <p>用户名仅允许包含大小写、数字、下划线、减号，长度为3-16</p>
+                        <div class="mdui-textfield">
+                            <label class="mdui-textfield-label">用户名</label>
+                            <input class="mdui-textfield-input" type="text" name="username" placeholder="仅允许包含大小写、数字、下划线、减号，长度为3-16" required/>
+                        </div>
+                        <div class="mdui-textfield mdui-textfield-floating-label">
+                            <label class="mdui-textfield-label">密码</label>
+                            <input class="mdui-textfield-input" type="password" name="password" required/>
+                        </div>
+                        <div class="mdui-textfield mdui-textfield-floating-label">
+                            <label class="mdui-textfield-label">邮箱</label>
+                            <input class="mdui-textfield-input" type="email" name="email" required/>
+                        </div>
+                        <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent" type="submit">注册</button>
+                        <a href="/login" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent">返回登录</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.getElementById('register-form').onsubmit = function (e) {
+        e.preventDefault();
+        const form = e.target;
+        const username = form.username.value;
+        const password = form.password.value;
+        const email = form.email.value;
+        axios.post('/register_user', {username, password: md5(password), email}).then(res => {
+            if (res.data.status === 200) {
+                // 只储存token到cookie，过期时间7天
+                //document.cookie = `token=${res.data.token}; expires=${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString()}`;
+                // 跳转到登录页面
+                //window.location.href = '/'
+                mdui.snackbar({
+                    message: "注册邮件已发送，请查收",
+                    position: 'bottom'
+                })
+            } else {
+                mdui.snackbar({
+                    message: res.data.message,
+                    position: 'bottom'
+                })
+            }
+        }).catch(err => {
+            if (err.response && err.response.status != 200) {
+                mdui.snackbar({
+                    message: err.response.data.message,
+                    position: 'bottom'
+                })
+            } else {
+                console.error(err);
+            }
+        });
+    }
+
+    function md5(data) {
+        return CryptoJS.MD5(data).toString();
+    }
+</script>
+</body>
+</html>

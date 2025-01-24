@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>设置</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery/3.6.0/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mdui/1.0.2/css/mdui.min.css"/>
+    <script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mdui/1.0.2/js/mdui.min.js"></script>
+    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/axios/0.26.0/axios.min.js"></script>
+</head>
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
+<div class="mdui-container">
+    <div class="mdui-row">
+        <div class="mdui-col-xs-12 mdui-col-sm-6 mdui-col-md-4 mdui-col-lg-3 mdui-col-xl-2">
+            <div class="mdui-card">
+                <div class="mdui-card-media">
+                    <div class="mdui-card-media-covered mdui-card-media-covered-gradient">
+                        <div class="mdui-card-primary">
+                            <div class="mdui-card-primary-title">设置</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mdui-card-content">
+                    <p>你的用户名：<span class="mdui-text-color-theme-accent" id="username"></span></p>
+                    <p>你的邮箱：<span class="mdui-text-color-theme-accent" id="email"></span></p>
+                    <div class="mdui-textfield">
+                        <label class="mdui-textfield-label">昵称</label>
+                        <input class="mdui-textfield-input" type="text" id="nickname" placeholder="请输入昵称"/>
+                    </div>
+                    <button class="mdui-btn mdui-color-theme-accent" onclick="submit()">提交</button>
+                    <button class="mdui-btn mdui-color-theme-accent" onclick="window.location.href=document.referrer">返回</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    var token = document.cookie.replace(/(?:(?:^|.*;\s*)token\s*\=\s*([^;]*).*$)|^.*$/, "$1");
+    if(!token){
+            window.location.href = "login";
+    }
+    function submit() {
+        let nickname = $("#nickname").val()
+        if (nickname === "") {
+            mdui.snackbar({
+                message: '请填写完整信息',
+                position: 'bottom',
+            })
+            return
+        }
+        axios.post('/set_settings', {
+            token: token,
+            settings: {
+                nickname: nickname,
+            },
+        }).then(function (response) {
+            mdui.snackbar({
+                message: '修改成功',
+                position: 'bottom',
+            })
+        }).catch(function (error) {
+            mdui.snackbar({
+                message: '修改失败',
+                position: 'bottom',
+            })
+        })
+    }
+    // 获取当前设置/get_settings
+    var settings = null;
+    axios.post('/get_settings', {
+        token: token,
+    }).then(function (response) {
+        settings = response.data.settings;
+        $("#nickname").val(settings.nickname)
+    }).catch(function (error) {
+        mdui.snackbar({
+            message: '获取设置失败',
+            position: 'bottom',
+        })
+    })
+    // 获取我的信息/get_user
+    var my_info = null;
+    axios.post('/get_user', {
+        token: token,
+    }).then(function (response) {
+        my_info = response.data.user;
+        $("#username").text(my_info.username)
+        $("#email").text(my_info.email)
+    }).catch(function (error) {
+        mdui.snackbar({
+            message: '获取用户信息失败',
+            position: 'bottom',
+        })
+    })
+</script>
+</body>
+</html>

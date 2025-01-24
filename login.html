@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录到TzChatPy</title>
+    <!--引入mdui 1.0.2版本-->
+    <link rel="stylesheet" href="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mdui/1.0.2/css/mdui.min.css"/>
+    <script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mdui/1.0.2/js/mdui.min.js"></script>
+    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/axios/0.26.0/axios.min.js"></script>
+    <!--script src="https://cdn.jsdelivr.net/npm/js-md5@0.7.3/src/md5.min.js"></script-->
+    <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
+    <div class="mdui-container">
+        <div class="mdui-row">
+            <div class="mdui-col-xs-12 mdui-col-sm-6 mdui-col-offset-sm3">
+                <div class="mdui-card">
+                    <div class="mdui-card-primary">
+                        <div class="mdui-card-primary-title">登录到TzChatPy</div>
+                        <div class="mdui-card-primary-subtitle">TzChatPy</div>
+                    </div>
+                    <div class="mdui-card-content">
+                        <form id="login-form">
+                            <div class="mdui-textfield mdui-textfield-floating-label">
+                                <label class="mdui-textfield-label">用户名或邮箱</label>
+                                <input class="mdui-textfield-input" type="text" id="username" name="username" required/>
+                            </div>
+                            <div class="mdui-textfield mdui-textfield-floating-label">
+                                <label class="mdui-textfield-label">密码</label>
+                                <input class="mdui-textfield-input" type="password" id="password" name="password" required/>
+                            </div>
+                            <button class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent" type="submit">登录</button>
+                            <a href="/register" class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent">没有账号？去注册</a>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        $(function () {
+            $('#login-form').submit(function (event) {
+                event.preventDefault();
+                var username = $('#username').val();
+                var password = $('#password').val();
+                var md5password = md5(md5(password));
+                axios.post('/login_user', {
+                    username: username, password: md5password
+                })
+                .then(function (response) {
+                    if (response.data.status === 200) {
+                        // 只储存token到cookie，过期时间7天
+                        document.cookie = `token=${response.data.token}; expires=${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString()}`;
+                        window.location.href = '/';
+                    } else {
+                        mdui.snackbar({
+                            message: response.data.message,
+                            position: 'bottom',
+                        });
+                    }
+                })
+                .catch(function (error) {
+                    if (error.response && error.response.status !== 200) {
+                        mdui.snackbar({
+                            message: error.response.data.message,
+                            position: 'bottom',
+                        });
+                    }else{
+                        console.log(error);
+                    }
+                });
+            });
+        });
+
+        function md5(data) {
+            return CryptoJS.MD5(data).toString();
+        }
+    </script>
+</body>
+</html>

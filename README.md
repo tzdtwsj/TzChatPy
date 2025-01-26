@@ -5,11 +5,13 @@
 
 ## 如何使用
 1. 安装依赖
+
 ```bash
-pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 2. 先启动一遍，生成配置文件
+
 ```bash
 python3 main.py
 ```
@@ -25,9 +27,11 @@ python3 main.py
     "mail_user": "",
     "mail_password": "",
     "enable_html": false
-}```
+}
+```
 
 4. 重新启动
+
 ```bash
 python3 main.py
 ```

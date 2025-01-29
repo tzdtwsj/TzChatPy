@@ -230,7 +230,7 @@ def recall_message(room_id, recaller, message_id):
     status = False
     username = ''
     for data in history[room_id]:
-        if data.get('msg_id') == message_id and (data.get('user') == recaller or get_user_from_name(recaller).get('permission') == 1):
+        if data.get('msg_id') == message_id and (data.get('user') == recaller or get_user_from_name(recaller).get('permission') == 1 or get_room_from_id(room_id).get('creator') == recaller):
             if data.get('recalled') == True:
                 return True
             data['recalled'] = True
@@ -262,7 +262,7 @@ def get_rooms():
     room_data_lock.release()
     return rooms
 
-def create_room(room_name:str, room_description:str="No description"):
+def create_room(creator:str, room_name:str, room_description:str="No description"):
     """创建房间"""
     """{
         'room_name': str,
@@ -278,7 +278,8 @@ def create_room(room_name:str, room_description:str="No description"):
         f.write(json.dumps(rooms+[{
             'room_name': room_name,
             'room_description': room_description,
-            'room_id': room_id
+            'room_id': room_id,
+            'creator': creator,
         }], indent=4))
     room_data_lock.release()
     return True
@@ -291,13 +292,19 @@ def get_room_from_id(room_id):
             return room
     return False
 
-def delete_room(room_id):
+def delete_room(creator:str, room_id:str):
     """删除房间"""
     rooms = get_rooms()
+    status = False
     for room in rooms:
         if room['room_id'] == room_id:
+            if room['creator'] != creator or get_user_from_name(creator).get('permission') != 1:
+                return False
             rooms.remove(room)
+            status = True
             break
+    if status == False:
+        return False
     room_data_lock.acquire()
     with open('data/rooms.json', 'w', encoding='utf-8') as f:
         f.write(json.dumps(rooms, indent=4))
@@ -560,9 +567,9 @@ def web_create_room():
         return jsonify({'status': 400, 'message': '参数数据类型错误'}), 400
     if room_name == '':
         return jsonify({'status': 400, 'message': '参数不能为空'}), 400
-    if get_user_from_token(token).get('permission') != 1:
-        return jsonify({'status': 403, 'message': '权限不足'}), 403
-    if create_room(room_name) == False:
+    # if get_user_from_token(token).get('permission') != 1:
+    #     return jsonify({'status': 403, 'message': '权限不足'}), 403
+    if create_room(get_user_from_token(token).get('username'),room_name) == False:
         return jsonify({'status': 400, 'message': '房间名已存在'}), 400
     return jsonify({'status': 200, 'message': '创建成功'}), 200
 
@@ -578,10 +585,10 @@ def web_delete_room():
         return jsonify({'status': 400, 'message': '参数数据类型错误'}), 400
     if room_id == '':
         return jsonify({'status': 400, 'message': '参数不能为空'}), 400
-    if get_user_from_token(token).get('permission') != 1:
-        return jsonify({'status': 403, 'message': '权限不足'}), 403
-    if delete_room(room_id) == False:
-        return jsonify({'status': 400, 'message': '房间不存在'}), 400
+    # if get_user_from_token(token).get('permission') != 1:
+    #     return jsonify({'status': 403, 'message': '权限不足'}), 403
+    if delete_room(get_user_from_token(token).get('username'),room_id) == False:
+        return jsonify({'status': 400, 'message': '房间不存在或没权限删除房间'}), 400
     return jsonify({'status': 200, 'message': '删除成功'}), 200
 
 @app.route('/get_rooms',methods=['POST'])

@@ -298,7 +298,7 @@ def delete_room(creator:str, room_id:str):
     status = False
     for room in rooms:
         if room['room_id'] == room_id:
-            if room['creator'] != creator or get_user_from_name(creator).get('permission') != 1:
+            if room['creator'] != creator and get_user_from_name(creator).get('permission') != 1:
                 return False
             rooms.remove(room)
             status = True
